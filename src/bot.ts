@@ -108,7 +108,9 @@ export default class Bot {
         await Server.initialize();
         await Browser.initialize();
 
-        
+
+        console.log("\n")
+;
         for (const id of this.config.playlists) {
             if(!this.playlists.has(id)) {
                 this.createPlaylist(id);

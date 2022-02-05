@@ -24,6 +24,8 @@ export default class Playlist {
 
     public async processNewVideos() {
 
+        console.log(`Processing playlist '${this.name}'...`);
+
         const vids = await this.retrieveVideos();
 
         await this.getPlaylistName();
@@ -57,7 +59,7 @@ export default class Playlist {
             }
         }
         
-        console.log(`(${this.name}) ${i} videos processed (${i_new} new) (${i_removed} removed)\n`);
+        console.log(`${i} videos processed (${i_new} new) (${i_removed} removed)\n`);
     }
 
     private async getPlaylistName() {
@@ -99,6 +101,7 @@ export default class Playlist {
         return this.videos.has(id);
     }
 
+    
     public static async retrieveVideos(id: string) {
         const browser = Browser.browser;
         const page = (await browser.pages())[0];
@@ -123,8 +126,13 @@ export default class Playlist {
 
         return videos;
     }
+    
 
     public async retrieveVideos() {
+
+        return Playlist.retrieveVideos(this.id);
+
+        /*
         const browser = Browser.browser;
         const page = (await browser.pages())[0];
         const playlistUrl = "https://www.youtube.com/playlist?list=" + this.id;
@@ -147,5 +155,6 @@ export default class Playlist {
         for (const k in data) videos[k] = data[k];
 
         return videos;
+        */
     }
 }
