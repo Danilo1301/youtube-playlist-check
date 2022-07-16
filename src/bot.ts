@@ -4,18 +4,18 @@ import Server from './server';
 import fs from 'fs';
 import request from 'request';
 import Video from "./video";
-import { resolve } from "path";
 
 async function sleep(ms: number) { return new Promise<void>((resolve) => { setTimeout(() => { resolve() }, ms) }); }
 
-const downloadImage = function(uri, filename, callback){
+function downloadImage(uri, filename, callback)
+{
     request.head(uri, function(err, res, body){
       //console.log('content-type:', res.headers['content-type']);
       //console.log('content-length:', res.headers['content-length']);
   
       request(uri).pipe(fs.createWriteStream(filename)).on('close', callback);
     });
-  };
+};
 
 interface IPlaylistSerializedData {
     id: string
@@ -39,7 +39,8 @@ export default class Bot {
         playlists: []
     }
 
-    public static log(message: string) {
+    public static log(message: string)
+    {
         if(!fs.existsSync(Bot.LOG_DIR)) {
             fs.writeFileSync(Bot.LOG_DIR, "");
         }
@@ -56,7 +57,72 @@ export default class Bot {
         console.log(logMessage);
     }
 
-    public async downloadThumbs(videoIds: string[]) {
+    public async start()
+    {
+        Bot.log("Bot started...");
+
+        if(!fs.existsSync(Bot.DATA_DIR)) {
+            fs.mkdirSync(Bot.DATA_DIR);
+        }
+
+        await this.loadConfig();
+        await this.loadPlaylists();
+        
+        await Server.initialize();
+
+        this.setupExpress();
+
+        await Browser.initialize();
+
+        console.log("\n");
+
+        for (const id of this.config.playlists) {
+            if(!this.playlists.has(id)) {
+                this.createPlaylist(id);
+                console.log(`Playlist ${id} created\n`);
+            }
+    
+            const playlist = this.playlists.get(id);
+            
+            await playlist.processNewVideos();
+
+            for (const videoId of playlist.recentAddedVideoIds) {
+                const video = playlist.videos.get(videoId);
+                Bot.log(`[${playlist.name}][ ADDED ] Video '${video.title}' by '${video.channelName}', video=${video.id}, playlist=${playlist.id}`);
+            }
+
+            for (const videoId of playlist.recentRemovedVideoIds) {
+                const video = playlist.videos.get(videoId);
+                Bot.log(`[${playlist.name}][ REMOVED ] Video '${video.title}' by '${video.channelName}', video=${video.id}, playlist=${playlist.id}`);
+            }
+
+            await this.savePlaylist(playlist);
+        }
+
+        console.log("\n")
+
+        const videoIds: string[] = [];
+
+        this.playlists.forEach(playlist => {
+            playlist.videos.forEach(video => {
+                videoIds.push(video.id);
+            })
+        });
+        await this.downloadThumbs(videoIds);
+
+        //console.log("Done")
+        Bot.log("Bot stopped!");
+    }
+
+    private setupExpress()
+    {
+        Server.app.get("/", (req, res) => {
+            res.end("ok nice");
+        })
+    }
+
+    public async downloadThumbs(videoIds: string[])
+    {
         if(!fs.existsSync(Bot.THUMBNAILS_DIR)) {
             fs.mkdirSync(Bot.THUMBNAILS_DIR);
         }
@@ -94,77 +160,20 @@ export default class Bot {
         return files;
     }
 
-    public async start() {
-        
-        Bot.log("Bot started...");
-
-        if(!fs.existsSync(Bot.DATA_DIR)) {
-            fs.mkdirSync(Bot.DATA_DIR);
-        }
-
-        await this.loadConfig();
-        await this.loadPlaylists();
-        
-        await Server.initialize();
-        await Browser.initialize();
-
-
-        console.log("\n")
-;
-        for (const id of this.config.playlists) {
-            if(!this.playlists.has(id)) {
-                this.createPlaylist(id);
-                console.log(`Playlist ${id} created\n`);
-            }
-    
-            const playlist = this.playlists.get(id);
-            
-           
-
-            await playlist.processNewVideos();
-
-            for (const videoId of playlist.recentAddedVideoIds) {
-                const video = playlist.videos.get(videoId);
-                Bot.log(`[${playlist.name}][ ADDED ] Video '${video.title}' by '${video.channelName}', video=${video.id}, playlist=${playlist.id}`);
-            }
-
-            for (const videoId of playlist.recentRemovedVideoIds) {
-                const video = playlist.videos.get(videoId);
-                Bot.log(`[${playlist.name}][ REMOVED ] Video '${video.title}' by '${video.channelName}', video=${video.id}, playlist=${playlist.id}`);
-            }
-
-            await this.savePlaylist(playlist);
-        }
-
-        console.log("\n")
-
-        const videoIds: string[] = [];
-
-        this.playlists.forEach(playlist => {
-            playlist.videos.forEach(video => {
-                videoIds.push(video.id);
-            })
-        });
-        await this.downloadThumbs(videoIds);
-
-        //console.log("Done")
-        Bot.log("Bot stopped!");
-    }
-
-    private async loadConfig() {
+    private async loadConfig()
+    {
         if(!fs.existsSync(Bot.CONFIG_DIR)) return;
-
         this.config = JSON.parse(fs.readFileSync(Bot.CONFIG_DIR, 'utf-8'));
-
     }
 
-    private async loadPlaylists() {
-
+    private async loadPlaylists()
+    {
         if(!fs.existsSync(Bot.PLAYLISTS_DIR)) return;
 
         const files = fs.readdirSync(Bot.PLAYLISTS_DIR);
 
-        for (const file of files) {
+        for (const file of files)
+        {
             const playlistId = file.replace(".json", "");
             const data: IPlaylistSerializedData = JSON.parse(fs.readFileSync(Bot.PLAYLISTS_DIR + `/${playlistId}.json`, 'utf-8'));
         
@@ -177,13 +186,15 @@ export default class Bot {
         }
     }
 
-    private createPlaylist(id: string) {
+    private createPlaylist(id: string)
+    {
         const playlist = new Playlist(id);
         this.playlists.set(id, playlist);
         return playlist;
     }
 
-    public savePlaylist(playlist: Playlist) {
+    public savePlaylist(playlist: Playlist)
+    {
         const data: IPlaylistSerializedData = {
             id: playlist.id,
             name: playlist.name,
@@ -200,9 +211,6 @@ export default class Bot {
     }
 }
 
-
 /*
 document.querySelectorAll("#contents.ytd-playlist-video-list-renderer ytd-playlist-video-renderer")
-
-
 */

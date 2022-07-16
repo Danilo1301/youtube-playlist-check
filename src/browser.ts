@@ -4,7 +4,12 @@ import fs from 'fs';
 export default class Browser {
     public static browser: puppeteer.Browser;
 
-    public static async initialize(headless?: boolean) {
+    public static async initialize(headless?: boolean)
+    {
+        headless = headless === true;
+
+        console.log(`Init browser (headless=${headless})`);
+
         const puppeteer_options = {
             /*
             args: [
@@ -19,14 +24,26 @@ export default class Browser {
                 
             ],
             */
-            headless: headless === true,
+            headless: headless,
             userDataDir: "./userData"
         }
 
         this.browser = await puppeteer.launch(puppeteer_options);
     }
 
-    public static async injectJQuery(page: puppeteer.Page) {
-        await page.addScriptTag({url: 'https://code.jquery.com/jquery-3.2.1.min.js'})
+    public static async injectJQuery(page: puppeteer.Page)
+    {
+        this.injectScript(page, "https://code.jquery.com/jquery-3.2.1.min.js");
+    }
+
+    public static async injectScript(page: puppeteer.Page, url: string)
+    {
+        await page.addScriptTag({url: url})
+    }
+
+    public static async getPage(n: number)
+    {
+        const browser = Browser.browser;
+        return (await browser.pages())[n];
     }
 }
